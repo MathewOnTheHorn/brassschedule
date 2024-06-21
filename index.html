@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brass Staff Schedule</title>
+    <style>
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .schedule-table th, .schedule-table td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+            white-space: pre-wrap;
+        }
+        .schedule-table th {
+            width: 10%;
+        }
+        .activity-col {
+            width: 30%;
+        }
+        .name-col {
+            width: 12%;
+        }
+        .time-block {
+            background-color: lightcoral;
+            font-weight: bold;
+            color: red;
+        }
+        .time-block.one-person {
+            background-color: lightyellow;
+            color: black;
+        }
+        .time-block.two-people {
+            background-color: lightgreen;
+            color: black;
+        }
+        .time-block.three-plus {
+            background-color: rgba(128, 0, 128, 0.5); /* 50% opacity purple */
+            color: black;
+        }
+        .day-header {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Brass Staff Schedule</h1>
+    <div id="schedule-container"></div>
+    <button onclick="exportSchedule('mathew')">Export Mathew's Schedule</button>
+    <button onclick="exportSchedule('alex')">Export Alex's Schedule</button>
+    <button onclick="exportSchedule('rich')">Export Rich's Schedule</button>
+    <button onclick="exportSchedule('joseph')">Export Joseph's Schedule</button>
+    <button onclick="exportSchedule('tom')">Export Tom's Schedule</button>
+    <button onclick="showCalendarPopup()">Add to Calendar</button>
+
+    <div id="calendar-popup" style="display:none;">
+        <h3>Select Your Name</h3>
+        <select id="name-select">
+            <option value="mathew">Mathew</option>
+            <option value="alex">Alex</option>
+            <option value="rich">Rich</option>
+            <option value="joseph">Joseph</option>
+            <option value="tom">Tom</option>
+        </select>
+        <button onclick="generateCalendarLink()">Generate Calendar Link</button>
+        <button onclick="closeCalendarPopup()">Close</button>
+        <div id="calendar-link-container" style="margin-top: 10px;"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA69LvMfaUcbmW_ut1f4tKZnx5H_HP6sC8",
+            authDomain: "brassstaffschedule.firebaseapp.com",
+            projectId: "brassstaffschedule",
+            storageBucket: "brassstaffschedule.appspot.com",
+            messagingSenderId: "6102754524",
+            appId: "1:6102754524:web:1f96b5c8c40cc576104019"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const nameCounts = {
+            mathew: 0,
+            alex: 0,
+            rich: 0,
+            joseph: 0,
+            tom: 0
+        };
+
+        const scheduleData = [
+            {
+                date: 'June 24, 2024',
+                blocks: [
+                    { time: '6:00 - 6:30', activity: 'Warm-up', location: 'Grandstand' },
+                    { time: '6:30 - 8:00', activity: 'Grandstand', location: 'Grandstand' },
+                    { time: '8:00 - 10:00', activity: 'Rodeo and O Canada Prep', location: 'Grandstand' }
+                ]
+            },
+            {
+                date: 'June 25, 2024',
+                blocks: [
+                    { time: '6:00 - 6:30', activity: 'Warm-up', location: 'BMO GS' },
+                    { time: '6:30 - 7:30', activity: 'BMO GS Show Staging', location: 'BMO GS' },
+                    { time: '7:30 - 10:00', activity: 'BMO GS Show Staging (singers join 7:30-10:00)', location: 'BMO GS' }
+                ]
+            },
+            {
+                date: 'June 27, 2024',
+                blocks: [
+                    { time: '9:00 - 12:00', activity: 'Sectional', location: 'TAPAS' },
+                    { time: '3:00 - 5:00', activity: 'Full Ensemble', location: 'TAPAS' },
+                    { time: '6:30 - 9:00', activity: 'Sectionals', location: 'TAPAS' }
+                ]
+            },
+            {
+                date: 'June 28, 2024',
+                blocks: [
+                    { time: '9:00 - 12:00', activity: 'Sectional', location: 'TAPAS' },
+                    { time: '1:00 - 4:00', activity: 'BMO GS Staging', location: 'BMO GS' },
+                    { time: '6:00 - 9:30', activity: 'Full Ensemble', location: 'TAPAS' }
+                ]
+            },
+            {
+                date: 'June 29, 2024',
+                blocks: [
+                    { time: '9:00 - 12:00', activity: 'Sectional', location: 'TAPAS' },
+                    { time: '1:00 - 4:00', activity: 'BMO GS Staging', location: 'BMO GS' },
+                    { time: '6:00 - 9:30', activity: 'Full Ensemble', location: 'TAPAS' }
+                ]
+            },
+            {
+                date: 'June 30, 2024',
+                blocks: [
+                    { time: '9:00 - 12:30', activity: 'Sectional', location: 'BMO Amphitheater' },
+                    { time: '1:00 - 3:00', activity: 'Sectional', location: 'TAPAS' },
+                    { time: '3:30 - 5:00', activity: 'Parade Prep', location: 'Plaza' }
+                ]
+            },
+            {
+                date: 'July 2, 2024',
+                blocks: [
+                    { time: '9:00 - 11:30', activity: 'Sectional', location: 'TAPAS' },
+                    { time: '12:45 - 3:30', activity: 'Full Ensemble', location: 'TAPAS' },
+                    { time: '5:30 - 9:30', activity: 'BMO GS Staging (singers join 7:00-9:30)', location: 'BMO GS' }
+                ]
+            },
+            {
+                date: 'July 1, 2024',
+                blocks: [
+                    { time: 'All Day', activity: 'Canada Day Parade', location: 'Various' }
+                ]
+            }
+        ];
+
+        const stampedeWeek = [
+            { day: 0, date: 'July 4, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 1, date: 'July 5, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede Parade', 'Stampede', 'Stampede'] },
+            { day: 2, date: 'July 6, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 3, date: 'July 7, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 4, date: 'July 8, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 5, date: 'July 9, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 6, date: 'July 10, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['SAIT Pancake', 'Stampede', 'Stampede'] },
+            { day: 7, date: 'July 11, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['McKenzie Town Pancake', 'Stampede', 'Stampede'] },
+            { day: 8, date: 'July 12, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 9, date: 'July 13, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] },
+            { day: 10, date: 'July 14, 2024', times: ['Morning', 'Afternoon', 'Evening'], locations: ['Stampede', 'Stampede', 'Stampede'] }
+        ];
+
+        function createScheduleTable(date, blocks) {
+            const table = document.createElement('table');
+            table.className = 'schedule-table';
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Time</th>
+                    <th class="activity-col">Activity</th>
+                    <th>Location</th>
+                    <th class="name-col" id="name-mathew-${date}">Mathew(0)</th>
+                    <th class="name-col" id="name-alex-${date}">Alex(0)</th>
+                    <th class="name-col" id="name-rich-${date}">Rich(0)</th>
+                    <th class="name-col" id="name-joseph-${date}">Joseph(0)</th>
+                    <th class="name-col" id="name-tom-${date}">Tom(0)</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            blocks.forEach(block => {
+                const tr = document.createElement('tr');
+                tr.className = 'time-block no-one';
+                tr.id = `block-${block.time.replace(/[: -]/g, '')}-${date}`;
+                tr.innerHTML = `
+                    <td>${block.time}</td>
+                    <td>${block.activity}</td>
+                    <td>${block.location}</td>
+                    <td><input type="checkbox" class="person-toggle" data-block="${tr.id}" data-name="mathew" onchange="updateNameCounts('mathew'); updateBlockColor('${tr.id}'); saveData();"></td>
+                    <td><input type="checkbox" class="person-toggle" data-block="${tr.id}" data-name="alex" onchange="updateNameCounts('alex'); updateBlockColor('${tr.id}'); saveData();"></td>
+                    <td><input type="checkbox" class="person-toggle" data-block="${tr.id}" data-name="rich" onchange="updateNameCounts('rich'); updateBlockColor('${tr.id}'); saveData();"></td>
+                    <td><input type="checkbox" class="person-toggle" data-block="${tr.id}" data-name="joseph" onchange="updateNameCounts('joseph'); updateBlockColor('${tr.id}'); saveData();"></td>
+                    <td><input type="checkbox" class="person-toggle" data-block="${tr.id}" data-name="tom" onchange="updateNameCounts('tom'); updateBlockColor('${tr.id}'); saveData();"></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            return table;
+        }
+
+        function generateSchedule() {
+            const container = document.getElementById('schedule-container');
+            scheduleData.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                const date = day.date.replace(/, /g, '-').replace(/ /g, '').toLowerCase();
+                dayHeader.innerHTML = `<h2>${day.date}</h2>`;
+                dayHeader.appendChild(createScheduleTable(date, day.blocks));
+                container.appendChild(dayHeader);
+            });
+
+            const stampedeHeader = document.createElement('div');
+            stampedeHeader.className = 'day-header';
+            stampedeHeader.innerHTML = '<h2>Stampede Week</h2>';
+            stampedeWeek.forEach(day => {
+                const daySubHeader = document.createElement('h3');
+                daySubHeader.innerText = `Day ${day.day}: ${day.date}`;
+                stampedeHeader.appendChild(daySubHeader);
+                const blocks = day.times.map((time, index) => ({
+                    time,
+                    activity: 'Various',
+                    location: day.locations[index]
+                }));
+                stampedeHeader.appendChild(createScheduleTable(day.date.replace(/ /g, ''), blocks));
+            });
+            container.appendChild(stampedeHeader);
+
+            loadData();
+        }
+
+        function updateBlockColor(blockId) {
+            const block = document.getElementById(blockId);
+            const checkboxes = block.querySelectorAll('.person-toggle');
+            const checkedCount = Array.from(checkboxes).filter(checkbox => checkbox.checked).length;
+
+            block.classList.remove('no-one', 'one-person', 'two-people', 'three-plus');
+
+            if (checkedCount === 0) {
+                block.classList.add('no-one');
+            } else if (checkedCount === 1) {
+                block.classList.add('one-person');
+            } else if (checkedCount === 2) {
+                block.classList.add('two-people');
+            } else {
+                block.classList.add('three-plus');
+            }
+        }
+
+        function updateNameCounts(name) {
+            nameCounts[name] = document.querySelectorAll(`.person-toggle[data-name="${name}"]:checked`).length;
+            document.querySelectorAll(`.name-col[id^="name-${name}-"]`).forEach(el => {
+                el.innerText = `${capitalizeFirstLetter(name)}(${nameCounts[name]})`;
+            });
+        }
+
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        function exportSchedule(name) {
+            const rows = document.querySelectorAll(`.person-toggle[data-name="${name}"]:checked`);
+            let schedule = `<h1>${capitalizeFirstLetter(name)}'s Schedule</h1>`;
+            const dayGroups = {};
+
+            rows.forEach(row => {
+                const parentRow = row.closest('tr');
+                if (parentRow) {
+                    const cells = parentRow.querySelectorAll('td');
+                    const time = cells[0].innerText;
+                    const activity = cells[1].innerText;
+                    const location = cells[2].innerText;
+                    const day = parentRow.closest('table').previousElementSibling.innerText;
+
+                    if (!dayGroups[day]) {
+                        dayGroups[day] = [];
+                    }
+
+                    dayGroups[day].push({ time, activity, location });
+                }
+            });
+
+            for (const day in dayGroups) {
+                schedule += `<h2>${day}</h2>`;
+                schedule += `<table class="schedule-table"><thead><tr><th>Time</th><th>Activity</th><th>Location</th></tr></thead><tbody>`;
+                dayGroups[day].forEach(entry => {
+                    schedule += `<tr>`;
+                    schedule += `<td>${entry.time}</td>`;
+                    schedule += `<td>${entry.activity}</td>`;
+                    schedule += `<td>${entry.location}</td>`;
+                    schedule += `</tr>`;
+                });
+                schedule += `</tbody></table>`;
+            }
+
+            const win = window.open('', '', 'height=700,width=700');
+            win.document.write('<html><head><title>Schedule</title>');
+            win.document.write('</head><body>');
+            win.document.write(schedule);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.print();
+        }
+
+        function showCalendarPopup() {
+            document.getElementById('calendar-popup').style.display = 'block';
+        }
+
+        function closeCalendarPopup() {
+            document.getElementById('calendar-popup').style.display = 'none';
+        }
+
+        function generateCalendarLink() {
+            const name = document.getElementById('name-select').value;
+            const rows = document.querySelectorAll(`.person-toggle[data-name="${name}"]:checked`);
+            const events = [];
+            rows.forEach(row => {
+                const parentRow = row.closest('tr');
+                if (parentRow) {
+                    const cells = parentRow.querySelectorAll('td');
+                    const time = cells[0].innerText.split(' - ');
+                    const activity = cells[1].innerText;
+                    const location = cells[2].innerText;
+                    const date = parentRow.closest('table').previousElementSibling.innerText;
+                    const start = new Date(`${date} ${time[0]}`);
+                    const end = new Date(`${date} ${time[1]}`);
+                    events.push({ start, end, activity, location });
+                }
+            });
+
+            let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\n';
+            events.forEach(event => {
+                icsContent += `BEGIN:VEVENT\n`;
+                icsContent += `SUMMARY:${event.activity}\n`;
+                icsContent += `LOCATION:${event.location}\n`;
+                icsContent += `DTSTART:${event.start.toISOString().replace(/[-:]/g, '').split('.')[0]}Z\n`;
+                icsContent += `DTEND:${event.end.toISOString().replace(/[-:]/g, '').split('.')[0]}Z\n`;
+                icsContent += `END:VEVENT\n`;
+            });
+            icsContent += 'END:VCALENDAR';
+
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${name}-schedule.ics`;
+            link.innerText = 'Download Calendar File';
+            document.getElementById('calendar-link-container').innerHTML = '';
+            document.getElementById('calendar-link-container').appendChild(link);
+        }
+
+        async function saveData() {
+            const data = {};
+            document.querySelectorAll('.person-toggle').forEach(input => {
+                data[input.dataset.block] = data[input.dataset.block] || {};
+                data[input.dataset.block][input.dataset.name] = input.checked;
+            });
+            await setDoc(doc(db, "schedule", "data"), data);
+        }
+
+        async function loadData() {
+            const docRef = doc(db, "schedule", "data");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                Object.keys(data).forEach(blockId => {
+                    Object.keys(data[blockId]).forEach(name => {
+                        const input = document.querySelector(`.person-toggle[data-block="${blockId}"][data-name="${name}"]`);
+                        if (input) {
+                            input.checked = data[blockId][name];
+                            updateBlockColor(blockId);
+                            updateNameCounts(name);
+                        }
+                    });
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            generateSchedule();
+
+            const blocks = document.querySelectorAll('.time-block');
+            blocks.forEach(block => {
+                const checkboxes = block.querySelectorAll('.person-toggle');
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        updateBlockColor(block.id);
+                        updateNameCounts(checkbox.dataset.name);
+                        saveData();
+                    });
+                });
+            });
+
+            loadData();
+        });
+    </script>
+</body>
+</html>
